@@ -29,7 +29,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 import java.util.List;
 
 @TeleOp(group = "drive")
-public class TeleopMain extends LinearOpMode {
+public class TeleopMainBlue extends LinearOpMode {
 
     // Devices
     private DcMotor Intake;
