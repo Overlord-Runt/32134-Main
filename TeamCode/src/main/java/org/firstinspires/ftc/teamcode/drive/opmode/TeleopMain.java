@@ -15,7 +15,18 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 
 import com.qualcomm.robotcore.hardware.Servo;
 
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.firstinspires.ftc.teamcode.drive.SampleMecanumDrive;
+import org.firstinspires.ftc.vision.VisionPortal;
+import org.firstinspires.ftc.vision.apriltag.AprilTagDetection;
+import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
+
+import java.util.List;
 
 @TeleOp(group = "drive")
 public class TeleopMain extends LinearOpMode {
@@ -24,6 +35,7 @@ public class TeleopMain extends LinearOpMode {
     private DcMotor Intake;
     private DcMotor Pass;
     private DcMotor Shoot;
+    private VisionPortal visionPortal;
     private ElapsedTime passTime = new ElapsedTime();
 
 
@@ -34,6 +46,7 @@ public class TeleopMain extends LinearOpMode {
     double nowPassTime = passTime.milliseconds();
     double maxPassTime = 50;
     double intakeSpeed = 1;
+    double trackSpeed = 5;
 
 
 
@@ -41,6 +54,10 @@ public class TeleopMain extends LinearOpMode {
     boolean shootState = false;
     boolean inState = false;
     double pass = 0;
+    double offset = 0;
+    double offsetX;
+    double offsetY;
+    double offsetZ;
 
 
 
@@ -54,6 +71,18 @@ public class TeleopMain extends LinearOpMode {
         Shoot = hardwareMap.get(DcMotor.class, "rightEncoder");
 
 
+        AprilTagProcessor aprilTag = new AprilTagProcessor.Builder()
+                .setDrawTagID(true)
+                .setDrawTagOutline(true)
+                .setDrawAxes(true)
+                .setDrawCubeProjection(true)
+                .setOutputUnits(DistanceUnit.CM, AngleUnit.DEGREES)
+                .build();
+
+        visionPortal = new VisionPortal.Builder()
+                .setCamera(hardwareMap.get(WebcamName.class, "Webcam 1"))
+                .addProcessor(aprilTag)
+                .build();
 
         SampleMecanumDrive drive = new SampleMecanumDrive(hardwareMap);
 
@@ -64,11 +93,15 @@ public class TeleopMain extends LinearOpMode {
 
 
         while (!isStopRequested()) {
+            if (gamepad1.rightBumperWasPressed()){
+                offset = offsetX/trackSpeed;
+            }
+
             drive.setWeightedDrivePower(
                     new Pose2d(
                             -gamepad1.left_stick_y,
                             -gamepad1.left_stick_x,
-                            -gamepad1.right_stick_x
+                            -gamepad1.right_stick_x + offset
                     )
             );
 
@@ -127,8 +160,22 @@ public class TeleopMain extends LinearOpMode {
             }
 
 
+            // Camera
+            List<AprilTagDetection> currentDetections = aprilTag.getDetections();
 
 
+
+            for (AprilTagDetection detection : currentDetections) {
+                if (detection.id == 20) {
+                    offsetX = detection.rawPose.x;
+                    offsetY = detection.rawPose.y;
+                    offsetZ = detection.rawPose.z;
+                }
+            }
+
+
+
+            // Telemetry
 
             telemetry.addData("x", poseEstimate.getX());
             telemetry.addData("y", poseEstimate.getY());
@@ -137,5 +184,6 @@ public class TeleopMain extends LinearOpMode {
             telemetry.addData("Inputs", gamepad1.toString());
             telemetry.update();
         }
+        visionPortal.close();
     }
 }
